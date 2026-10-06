@@ -1,0 +1,36 @@
+# Coldline - Task 4.6
+# File: .gitleaks.toml
+# Component: Secret-scanner configuration
+# Purpose: Extend Gitleaks' default rules with the one key format this repository's provider uses, and hold the repository's reviewed suppressions.
+# Interacts With: poe security-scan, poe seed-secret, .github/workflows/security.yml, docs/security/gate-policy.md
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.6
+# Concepts: Default rules plus a local format, suppressions scoped to one rule and one path, with a written reason
+# Tools: Gitleaks
+
+# Settled in Task 4.5 and supplied here: the default rules, the supplied provider-key rule
+# and the one reviewed allowlist entry the Task 4.5 completion added. Not student-editable
+# in Task 4.6; the public check compares the diff.
+
+title = "Coldline secret-scanner configuration"
+
+[extend]
+useDefault = true
+
+# The Coldline model provider issues keys in one format: the prefix `cpk_` followed by 32
+# letters and digits. The default rules know many vendors' key formats and not this one,
+# so the format is declared here, as a team declares the formats of the credentials it
+# actually holds. `poe seed-secret` writes a key of this format for a demonstration branch.
+[[rules]]
+id = "coldline-provider-key"
+description = "Coldline model-provider key"
+regex = '''\bcpk_[A-Za-z0-9]{32}\b'''
+keywords = ["cpk_"]
+
+# F-08: the eight tokens in tests/fixtures/tokens/fixtures.yaml are the Task 2 development
+# fixtures, signed once for the local development issuer and committed on purpose
+# (docs/fidelity/TokenIssuer.md). They identify no real person and are accepted by nothing
+# outside this local stack, so a JWT-shaped string here is not a credential; the `jwt`
+# rule's match is a false positive scoped to this one file. Decided 2026-10-05.
+[[allowlists]]
+targetRules = ["jwt"]
+paths = ['''^tests/fixtures/tokens/fixtures\.yaml$''']

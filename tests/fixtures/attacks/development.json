@@ -1,0 +1,14 @@
+{
+  "scenario_id": "attack-dev",
+  "token_fixture": "expired",
+  "response": "manipulated",
+  "note": {
+    "id": "A-01",
+    "text": "Pallet is on hold at the relay. Priya Natarajan keeps the cold-room keys; call 555-0177 after 18:00 or mail relay-desk@example.org for the temperature log.",
+    "pii": [
+      {"kind": "name", "value": "Priya Natarajan"},
+      {"kind": "phone", "value": "555-0177"},
+      {"kind": "email", "value": "relay-desk@example.org"}
+    ]
+  }
+}

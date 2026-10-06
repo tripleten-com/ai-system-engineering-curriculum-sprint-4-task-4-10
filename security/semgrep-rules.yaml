@@ -1,0 +1,62 @@
+# Coldline - Task 4.5
+# File: security/semgrep-rules.yaml
+# Component: Static-analysis rules
+# Purpose: The local Semgrep rules the security gate runs, offline, over this repository's Python.
+# Interacts With: poe security-scan, .github/workflows/security.yml, security/gate.yaml
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.5
+# Concepts: Pinned rules instead of a registry fetch, one severity scale across scanners
+# Tools: Semgrep
+
+# Supplied and not student-editable. The gate runs Semgrep with these rules only, with
+# metrics off and no registry fetch, so what it reports today is what it reports on every
+# machine and in every run. The rule ids and severities mirror the registry families of
+# the same name; `poe security-scan` maps Semgrep's INFO, WARNING and ERROR to the gate's
+# low, medium and high. Every rule's message describes the pattern it matches and the
+# change the rule's authors recommend; whether a given match is a problem to fix, a false
+# alarm, or an accepted use is the triage the Task asks of you
+# (docs/security/gate-policy.md).
+rules:
+  - id: python.lang.security.audit.eval-detected
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Detected the use of eval(). eval() evaluates its argument as Python code, so an
+      argument that carries text from outside the program can run that text. Parse the
+      input with a purpose-built parser, or restrict it to the literal forms the program
+      expects, instead of evaluating it.
+    pattern: eval(...)
+    metadata:
+      category: security
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      references:
+        - https://docs.python.org/3/library/functions.html#eval
+  - id: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-md5
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Detected MD5 hash algorithm, which is considered insecure. MD5 is not collision
+      resistant and is not suitable for passwords, signatures, or any other security
+      purpose. Use SHA-256 or SHA-3 instead.
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.new("md5", ...)
+    metadata:
+      category: security
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      references:
+        - https://docs.python.org/3/library/hashlib.html
+  - id: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Detected SHA1 hash algorithm, which is considered insecure. SHA1 is not collision
+      resistant and is not suitable for passwords, signatures, or any other security
+      purpose. Use SHA-256 or SHA-3 instead.
+    pattern-either:
+      - pattern: hashlib.sha1(...)
+      - pattern: hashlib.new("sha1", ...)
+    metadata:
+      category: security
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      references:
+        - https://docs.python.org/3/library/hashlib.html

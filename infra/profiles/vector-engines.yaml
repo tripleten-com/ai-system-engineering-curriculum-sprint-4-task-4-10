@@ -1,0 +1,169 @@
+# Coldline - Task 2.8
+# File: infra/profiles/vector-engines.yaml
+# Component: Vector engine technical profiles
+# Purpose: State the architectural facts the Task 2.8 classifications are graded against.
+# Interacts With: docs/architecture/vector-engines.md and the attribution checks
+# Sprint/Task: Sprint 2 - Project 2 / Task 2.8
+# Concepts: Storage layout, filtering mechanism, operational footprint
+# Tools: YAML
+
+# These profiles are the graded source. The checks compare a recorded
+# classification with the `storage_layout` recorded here, not with anything a
+# model or a search engine might say about these products: a Task must not grade
+# a student against knowledge it did not supply.
+#
+# The prose in docs/architecture/vector-engines.md says the same things at
+# length. If the two ever disagree, this file is the one the checks read, and
+# the disagreement is a defect in the Task rather than in a submission.
+
+schema_version: 2
+
+# Both profiles describe the same retrieval need under the same declared
+# deployment assumptions. Comparing engines against different needs, or against
+# undisclosed assumptions, produces a conclusion about the assumptions rather
+# than about the engines.
+retrieval_need: >-
+  Hybrid retrieval over a tenant-partitioned corpus of procedural documents:
+  dense similarity and full-text search over the same chunks, an access
+  predicate applied at query time rather than to the results, and per-stage
+  evidence recoverable for one query.
+deployment_assumptions:
+  - A single write-primary datastore already owns the documents and chunks.
+  - One deployment environment; no multi-region or cross-account topology.
+  - Corpus scale in the thousands of chunks, not the millions.
+  - The access predicate must be enforced inside the search, not after it.
+  - Operational ownership is one small team, not a dedicated platform group.
+
+# The two layout patterns this Task distinguishes. A profile's storage_layout
+# must be one of these codes.
+storage_layouts:
+  integrated_relational_table: >-
+    Vector embeddings live as typed columns inside relational rows, alongside
+    the transactional entity data they belong to. One schema, one query
+    planner, one durability and backup boundary.
+  dedicated_vector_payload_store: >-
+    Vectors and their metadata payloads live in collections maintained by a
+    service built for similarity search. The vector store is a separate system
+    from whichever database owns the entities.
+
+engines:
+  pgvector:
+    display_name: PostgreSQL with the pgvector extension
+    # This is the engine this repository actually runs; see compose.yaml.
+    deployed_here: true
+    version: PostgreSQL 16.15 with pgvector 0.8.6, from pgvector/pgvector:pg16
+    digest: sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+    source_references:
+      - infra/postgres/002_retrieval_corpus.sql, for the declared vector column.
+      - src/adapters/retriever/postgres_hybrid.py, for both query arms.
+      - compose.yaml, for the pinned image.
+      - https://github.com/pgvector/pgvector/blob/v0.8.6/README.md#storing
+      - https://github.com/pgvector/pgvector/blob/v0.8.6/README.md#filtering
+      - https://github.com/pgvector/pgvector/blob/v0.8.6/README.md#vacuuming
+      - https://www.postgresql.org/docs/16/backup-dump.html
+      - https://www.postgresql.org/docs/16/app-pgrestore.html
+    documentation_reference: >-
+      PostgreSQL 16 documentation and the pgvector v0.8.6 README, reviewed
+      2026-09-08. The README version is a reading reference, not evidence of
+      the extension version inside the pinned image. PostgreSQL 16.15 and
+      pgvector 0.8.6 were observed from the same pinned image during Task 2.5
+      qualification on 2026-09-08; this does not qualify Task 2.8 or its
+      architecture comparison.
+    storage_layout: integrated_relational_table
+    evidence: >-
+      infra/postgres/002_retrieval_corpus.sql declares `embedding vector(64)`
+      as a column of the `chunks` table, beside `chunk_text`, `tenant_id`, and
+      the provenance columns. The vector is an attribute of a relational row.
+    filtering_mechanism: >-
+      Each search arm puts its access predicate inside its SQL statement;
+      the dense arm also orders by vector distance. The planner controls
+      execution order. Query-time enforcement does not mean filtering always
+      precedes an approximate index scan or guarantees complete recall.
+    operational_footprint: >-
+      One datastore owns documents, chunks, and stored embeddings. The supplied
+      document writer inserts them in the same transaction, without a second
+      vector service to synchronize.
+    backup_and_restore: >-
+      A complete, consistent database backup can include documents, chunks,
+      and vectors together. Successfully restoring that full backup to a
+      compatible database recovers their shared database snapshot. PostgreSQL
+      also permits selective dumps and restores; consistency of a partial
+      recovery is an operational responsibility. A migration changes the
+      objects it explicitly targets, not necessarily every related table.
+    synchronization: >-
+      No cross-datastore copy is needed for this supplied write path. The
+      application still owns embedding generation and keeping embeddings
+      consistent when source text changes. Index maintenance or rebuilding
+      may still be needed; storing vectors in rows does not remove that work.
+  qdrant:
+    display_name: Qdrant
+    # Not installed, not deployed, and not required by this Task. The
+    # comparison is a reading exercise against this profile.
+    deployed_here: false
+    version: >-
+      Qdrant v1.15.0 API specification is the versioned reading reference for
+      collections, points, payloads, and filtered queries. Vendor concept
+      documentation was reviewed on 2026-09-08 and may describe newer releases.
+      This is not a deployment pin; no Qdrant runtime was installed or observed.
+    source_references:
+      - https://github.com/qdrant/qdrant/blob/v1.15.0/docs/redoc/master/openapi.json
+      - https://qdrant.tech/documentation/manage-data/collections/
+      - https://qdrant.tech/documentation/manage-data/points/
+      - https://qdrant.tech/documentation/manage-data/payload/
+      - https://qdrant.tech/documentation/search/filtering/
+      - https://qdrant.tech/documentation/manage-data/indexing/
+      - https://qdrant.tech/documentation/operations/snapshots/
+    storage_layout: dedicated_vector_payload_store
+    evidence: >-
+      Qdrant organizes data into collections of points with vector data and
+      optional JSON payloads. A point can hold named vectors; it is not limited
+      to exactly one vector. This collection model differs from relational
+      tables and SQL planning. Under the declared assumptions, the entity
+      database remains a separate system.
+    filtering_mechanism: >-
+      A vector-search request can carry conditions on payload fields. Qdrant
+      uses payload indexes and filter cardinality estimates when choosing a
+      search strategy. The API filter does not prescribe one fixed traversal
+      order; it restricts which points may match the request.
+    operational_footprint: >-
+      A second service to run alongside whichever database owns the entities:
+      its own cluster, its own snapshot and restore lifecycle, and a
+      synchronization path to keep its points consistent with the source of
+      truth.
+
+    backup_and_restore: >-
+      A collection snapshot covers Qdrant collection data on the node where it
+      is taken, not the external entity database. Distributed deployments need
+      the appropriate per-node recovery procedure. Under the declared separate
+      database assumption, recovery must coordinate or reconcile the two
+      systems' saved states; a Qdrant snapshot alone does not do that.
+    synchronization: >-
+      Under these assumptions, the application or its ingestion pipeline owns
+      propagating changes that affect indexed vectors or payloads, including
+      relevant deletions. It needs a way to detect and repair divergence after
+      partial failures or rebuilding. Unrelated source-database writes do not
+      necessarily require a collection update.
+
+# Release gate, per ADR009-R07: CME independently verifies both profiles and the
+# accepted answers before release.
+qualification:
+  status: local-release-candidate
+  authority: ADR012-R03-R05
+  approval: source PR approval and merge
+  additional_owner_review: deferred
+  confirmed_by_cme: false
+
+# What this comparison is not. Recording it here keeps the Task from implying a
+# recommendation it does not make and cannot support.
+limits:
+  - No performance, scale, recall, or cost claim is made about either engine.
+  - >-
+    No preference is graded. Both layouts are legitimate engineering choices,
+    and this Task asks only which layout each engine implements.
+  - >-
+    No performance or recovery behavior was measured. The PostgreSQL and
+    pgvector versions were observed; the layout is read from this repository's
+    schema. The Qdrant rows describe documentation, not an observed runtime.
+  - >-
+    No Qdrant installation is required, expected, or graded, and no deployment
+    assumption beyond the declared list above is relied on.

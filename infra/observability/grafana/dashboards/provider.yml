@@ -1,0 +1,17 @@
+# Coldline
+# File: infra/observability/grafana/dashboards/provider.yml
+# Component: Grafana dashboard provider
+# Purpose: Load the supplied diagnostic dashboard from a read-only path.
+# Interacts With: Grafana dashboard JSON
+# Sprint/Task: Sprint 1 — Project 1
+# Concepts: Deterministic provisioning
+# Tools: Grafana
+
+apiVersion: 1
+
+providers:
+  - name: Coldline
+    type: file
+    updateIntervalSeconds: 10
+    options:
+      path: /etc/grafana/provisioning/dashboards/files

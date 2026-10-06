@@ -1,0 +1,179 @@
+# Coldline - Task 4.1
+# File: docs/security/threat-catalog.yaml
+# Component: Supplied threat catalog
+# Purpose: List the candidate threats against the exception-resolution workflow.
+# Interacts With: docs/security/workflow.md, docs/security/scoring.md, submission.yaml
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.1
+# Concepts: Threat modeling, STRIDE
+# Tools: YAML
+
+# Supplied material, not student-editable. Each entry names the element it is
+# against (docs/security/workflow.md) and, where one applies, the flow it rides
+# on. The description is plain language: which STRIDE kind each threat is, and
+# how likely the code as it stands makes it, are yours to decide with
+# docs/security/scoring.md. Do not add threats here; record anything you notice
+# that this catalog leaves out in the last section of your threat model.
+
+threats:
+  - id: TH-01
+    element: E3
+    flow: DF-11
+    title: Summary read by anyone who can reach the API
+    description: >-
+      Any caller that can reach the API reads the stored summary of any exception by
+      guessing or reusing its id. The request carries nothing that says who is asking, and
+      the API answers it as it would answer a dispatcher.
+
+  - id: TH-02
+    element: E3
+    flow: DF-01
+    title: Reading posted by anyone who can reach the API
+    description: >-
+      Any caller posts a well-formed reading, with any shipment id and any handling note,
+      and the API accepts it as the sensor gateway's. The reading creates an exception that
+      a dispatcher later reviews.
+
+  - id: TH-03
+    element: E5
+    flow: DF-09
+    title: Manipulated or malformed answer stored as the summary
+    description: >-
+      The worker stores the model provider's answer as the summary without checking its
+      shape or content. An instruction placed in the model's input, typed into a handling
+      note at the gateway or written into a procedure the retriever hands over, can make the
+      provider return text that the worker stores and a dispatcher reads as a summary.
+
+  - id: TH-04
+    element: E5
+    flow: DF-04
+    title: Queued job altered before the worker reads it
+    description: >-
+      A party that can write to the queue changes a message body so the worker processes a
+      reading or a note the API never accepted. The worker takes the body as the API wrote
+      it.
+
+  - id: TH-05
+    element: E3
+    flow: DF-13
+    title: Summary reads leave no record of who read what
+    description: >-
+      A summary is read, and afterwards nothing says who read it, when, or from where. The
+      API writes no record of the read, and the stored exception holds only its states and
+      timestamps, so a disputed or denied read cannot be settled from evidence.
+
+  - id: TH-06
+    element: E5
+    flow: DF-08
+    title: Personal details in the handling note reach logs, the provider, and the record
+    description: >-
+      The handling note can carry a contact's name, phone number, or email address. The
+      worker logs the note as it reads the job, sends it to the model provider in the
+      request, and the provider's answer repeats it into the stored summary, which every
+      reader of the record sees.
+
+  - id: TH-07
+    element: E5
+    flow: null
+    title: Provider key readable in the worker's configuration module
+    description: >-
+      The model provider's key is a string literal in the worker's settings module,
+      committed to the repository and built into the worker image. Anyone with read access
+      to the repository, a CI log, or the image reads the key and can call the provider as
+      Coldline.
+
+  - id: TH-08
+    element: E3
+    flow: null
+    title: Procedure search with a tenant and clearance the caller states
+    description: >-
+      A caller to procedure search names its own tenant and clearance in the request. The
+      API checks nothing about who the caller is and applies the stated scope, so any caller
+      reads the restricted-tier procedures of any tenancy by naming them.
+
+  - id: TH-09
+    element: E5
+    flow: DF-08
+    title: Restricted procedure text sent to the model provider
+    description: >-
+      The worker retrieves procedures under one fixed scope that sees every tier of the
+      procedure tenancy, and places the excerpt in the model request. Procedures marked for
+      restricted distribution reach the model provider, an outside party, with every
+      exception that matches them.
+
+  - id: TH-10
+    element: E5
+    flow: DF-10
+    title: Processing leaves no record of what produced the stored summary
+    description: >-
+      Once a summary is stored, nothing links it to the request the worker sent or the
+      answer the provider returned. The worker's one log line is in the container's output
+      only; the record holds the summary and its states. A summary that looks wrong cannot
+      be traced back to what produced it.
+
+  - id: TH-11
+    element: E5
+    flow: null
+    title: LocalStack development credentials as configuration literals
+    description: >-
+      The object-storage and queue access keys are literals in compose.yaml and in both
+      services' settings modules. They are development values that grant nothing outside
+      the Compose network, and they sit in the same places a real credential would.
+
+  - id: TH-12
+    element: E5
+    flow: null
+    title: A dependency with a known vulnerability merges unchecked
+    description: >-
+      Nothing in continuous integration scans dependencies or images. A pull request that
+      pins a dependency with a known high-severity vulnerability merges, and the next worker
+      and API images ship it.
+
+  - id: TH-13
+    element: E9
+    flow: null
+    title: A compromised worker can rewrite the corpus
+    description: >-
+      The worker connects to PostgreSQL as the same user the API uses, which owns every
+      table. A worker made to run attacker-chosen code can insert, change, or delete
+      procedure documents and chunks, although its job needs only to read them.
+
+  - id: TH-14
+    element: E3
+    flow: DF-01
+    title: Unbounded reading ingest delays real exceptions
+    description: >-
+      Any caller posts readings as fast as it likes. Each distinct reading creates a record,
+      a queue message, a retrieval, and a provider call, and the worker drains them one at a
+      time, so a flood delays every real exception queued behind it.
+
+  - id: TH-15
+    element: E7
+    flow: DF-09
+    title: A slow or failing model provider delays every exception
+    description: >-
+      When the provider answers slowly or fails, every exception waits on it. Each job's
+      call is bounded and retried, and when the bounded processing attempts are spent the
+      worker records the exception as FAILED and acknowledges the job, but while the
+      provider is slow nothing completes.
+
+  - id: TH-16
+    element: E9
+    flow: null
+    title: Anyone can write a procedure document
+    description: >-
+      Any caller to the document endpoint stores a document under any tenancy and tier,
+      with a custodian name and revision the caller typed. The retriever ranks the new
+      document alongside the supplied ones, so its text can be the excerpt the worker sends
+      for a matching exception.
+
+  - id: TH-17
+    element: E3
+    flow: null
+    title: Procedure searches leave no record of who searched or what was returned
+    description: >-
+      A caller searches the procedures and receives the ranked chunks, and afterwards nothing
+      says who searched, what they asked, or which documents came back. The API writes no
+      record of the search; the query id in the request is the caller's own, and the response
+      goes back to that caller alone. A disputed search cannot be settled from evidence, and a
+      restricted procedure found in the wrong hands cannot be traced to the search that
+      returned it.

@@ -1,0 +1,35 @@
+# Coldline - Task 2.7
+# File: config/benchmark-template.yaml
+# Component: Benchmark template identity
+# Purpose: Name the template and measurement procedure a retained report belongs to.
+# Interacts With: tests/benchmark/reports.py and docs/contracts/benchmark-report.schema.json
+# Sprint/Task: Sprint 2 - Project 2 / Task 2.7
+# Concepts: Report provenance, pinned measurement procedure
+# Tools: YAML
+
+# A retained report is graded against a recorded answer, so it has to say which
+# template and which measurement procedure produced it. Reading that from this
+# supplied file rather than from the environment means a report captured
+# somewhere else, or by an older harness, is rejected rather than compared
+# against figures it is not comparable with.
+
+schema_version: 1
+
+# Written into every report as `template_id`, and required to match by the
+# report contract.
+template_id: coldline-task-2-7
+
+# Written into every report as `harness_version`. The measurement procedure is
+# pinned here in the terms that make two reports comparable at all: change any
+# of them and reports from before the change are no longer a valid basis for a
+# comparison, so this number changes with them.
+harness_version: 1
+measurement_procedure:
+  warmup_requests: 22
+  repeats_per_query: 15
+  percentile_rule: nearest-rank, no interpolation
+  # The arms are captured by separate commands, so the baseline report survives
+  # an experiment run untouched. Two captures taken minutes apart do not share
+  # host conditions, which is why the latency tolerance T has to be calibrated
+  # against the spread repeated runs actually show; see config/adoption-policy.yaml.
+  capture: one command per arm, one retained report per capture

@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Coldline Task 2.7 benchmark report contract. The harness writes one report per measured arm and both are retained: .benchmark/baseline.json and .benchmark/experiment.json. The assessed checks grade the recorded answers against these retained reports rather than against a fresh measurement, so this contract is what makes a report gradeable at all. It validates shape, identifiers, and provenance. It cannot authenticate a wall-clock measurement, and nothing here claims to: the identifier and consistency checks establish that a report describes this template, these fixtures, and that configuration, not that the timings in it were observed.",
+  "title": "Coldline Task 2.7 benchmark arm report",
+  "description": "One retrieval configuration measured against the golden evaluation set, with the provenance needed to grade an answer against it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_schema_version",
+    "harness_version",
+    "template_id",
+    "fixture_id",
+    "configuration_id",
+    "run_id",
+    "captured_at",
+    "arm",
+    "config",
+    "golden_set_digest",
+    "query_ids",
+    "failed_query_ids",
+    "recall_at_k",
+    "judge_relevance",
+    "judge_faithfulness",
+    "latency_p50_ms",
+    "latency_p95_ms",
+    "latency_p99_ms",
+    "latency_samples",
+    "queries"
+  ],
+  "properties": {
+    "report_schema_version": {
+      "description": "Version of this contract the report was written against. A report from an older harness is invalid rather than silently accepted.",
+      "const": 1
+    },
+    "harness_version": {
+      "description": "Version of the measurement procedure: warmup count, repeats per query, and percentile rule. A change to any of them makes reports incomparable, so it changes this number.",
+      "const": 1
+    },
+    "template_id": {
+      "description": "Which Task template produced this report. Read from the supplied config/benchmark-template.yaml, never from the environment.",
+      "const": "coldline-task-2-7"
+    },
+    "fixture_id": {
+      "description": "Digest over the exact golden evaluation set the arm ran against, so two arms can be shown to have been measured against identical fixtures.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "configuration_id": {
+      "description": "Digest over the arm's own validated retrieval configuration. Recomputed from `config` by the checks, so a report cannot claim a configuration it did not measure.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "run_id": {
+      "description": "Identifier of the capture that produced this report. The two retained reports must carry different run identifiers: a single capture cannot have measured both arms and still be two independently retained runs.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "captured_at": {
+      "description": "UTC timestamp of the capture, in RFC 3339 form with a trailing Z.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "arm": {
+      "description": "Which side of the comparison this report is. The baseline arm must have measured the supplied baseline configuration.",
+      "enum": [
+        "baseline",
+        "experiment"
+      ]
+    },
+    "config": {
+      "description": "The retrieval configuration measured, as validated by the harness.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "top_k",
+        "fusion_weight"
+      ],
+      "properties": {
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "fusion_weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "golden_set_digest": {
+      "description": "Same value as `fixture_id`, kept under the harness's own name so the printed report and the contract read alike.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "query_ids": {
+      "description": "Every published golden query measured, in published order.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "failed_query_ids": {
+      "description": "Queries whose measurement failed. A report with any entry here is not a valid basis for a decision.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recall_at_k": {
+      "description": "Mean deterministic Recall@K over the measured queries. Recomputed from `queries` by the checks.",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "judge_relevance": {
+      "description": "Mean cached-judge relevance over the measured queries. Comparison evidence only; it takes no part in the adoption rule.",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "judge_faithfulness": {
+      "description": "Mean cached-judge faithfulness. Comparison evidence only.",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "latency_p50_ms": {
+      "description": "Median query latency in milliseconds. Present so that recording the median where the p95 was asked for is a detectable mistake rather than an invisible one.",
+      "type": "number",
+      "exclusiveMinimum": 0.0
+    },
+    "latency_p95_ms": {
+      "description": "95th-percentile query latency in milliseconds, nearest-rank over every sample from every query. This is the figure the answer sheet and the adoption rule both use.",
+      "type": "number",
+      "exclusiveMinimum": 0.0
+    },
+    "latency_p99_ms": {
+      "description": "99th-percentile query latency in milliseconds.",
+      "type": "number",
+      "exclusiveMinimum": 0.0
+    },
+    "latency_samples": {
+      "description": "How many timed requests the percentiles were taken over, warmup excluded.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "queries": {
+      "description": "Per-query outcomes. The aggregate metrics are recomputed from these, so a report whose totals disagree with its own rows is invalid.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query_id",
+          "retrieved_chunk_ids",
+          "relevant_retrieved",
+          "total_relevant",
+          "recall",
+          "judge_relevance",
+          "judge_faithfulness",
+          "unjudged_chunk_ids"
+        ],
+        "properties": {
+          "query_id": {
+            "type": "string"
+          },
+          "retrieved_chunk_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "relevant_retrieved": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_relevant": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "recall": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "judge_relevance": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "judge_faithfulness": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "unjudged_chunk_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

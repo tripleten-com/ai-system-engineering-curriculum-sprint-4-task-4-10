@@ -1,0 +1,22 @@
+# Coldline - Task 4.5
+# File: .semgrepignore
+# Component: Static-analysis scope
+# Purpose: Keep Semgrep on the repository's own files: no tool caches, no virtual environment, no generated reports.
+# Interacts With: poe security-scan, security/semgrep-rules.yaml
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.5
+# Concepts: Scanning the files at the pull request's head, and nothing beside them
+# Tools: Semgrep
+
+# `poe security-scan` already hands Semgrep a copy of the tracked and untracked files that
+# Git does not ignore, so these entries are a second guard, not the first. Every path the
+# scanners read is listed here explicitly rather than left to Semgrep's defaults, which
+# would also skip tests/ and are not pinned by this repository.
+.git/
+.venv/
+.tools/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.semgrep_logs/
+reports/
+evidence/

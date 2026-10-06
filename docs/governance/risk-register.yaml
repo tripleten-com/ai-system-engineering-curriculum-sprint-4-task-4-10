@@ -1,0 +1,98 @@
+# Coldline - Task 4.7
+# File: docs/governance/risk-register.yaml
+# Component: Risk register (supplied completion/reference version)
+# Purpose: Show a completed Task 6 register: for each selected risk, the control, the test, the evidence, the owner role and the residual risk.
+# Interacts With: docs/security/control-matrix.md, docs/governance/owners.md, docs/governance/concerns.md, docs/governance/decision-record.md
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.7
+# Concepts: Risk register, residual risk, ownership, evidence from a real run
+# Tools: YAML
+
+# Supplied checkpoint: a completion/reference version of the Task 6 risk register, carried
+# into the Task 4.7 checkpoint as settled material. It is not your evidence: at the
+# Project Defense, cite your own register at Task 6's accepted commit. It is not
+# student-editable in this Task; the only file a Task 4.7 pull request may change is
+# submission.yaml. R-05's pull request citation is illustrative: it shows the citation's
+# form and names no real run.
+risks:
+  - id: R-01
+    threat: TH-01
+    title: Summary read by anyone who can reach the API
+    control: "C-01"
+    test: "tests/unit/api/test_require_access.py::test_a_refused_token_is_401_with_the_verifier_reason"
+    evidence: "attack-dev:token_check"
+    owner: "security-reviewer"
+    residual: >-
+      A valid dispatcher token in the wrong hands is accepted until it expires: the verifier
+      checks the signature, the issuer, the audience and the expiry against one fixed
+      development key set, and no tested case shows revocation, key rotation or a short-lived
+      token (the C-01 limit in docs/security/control-matrix.md and docs/fidelity/TokenIssuer.md).
+      Unlikely on the loopback-bound development stack; impact 4 if a token leaks, because the
+      read returns the shipment and the note.
+    mapping_note: >-
+      C-01 contributes to GC-04 the identification of the caller (signature, issuer, audience
+      and expiry against the published key set) and the grant of one action, the summary read,
+      to one role with one scope, refusing every other fixture with 401 or 403
+      (attack-dev:token_check; the grants table of docs/security/access-policy.md). It does not
+      contribute access control to the reading intake, the procedure search or the document
+      writes, which stay unauthenticated (C-07 and C-10 are not built), and it establishes
+      nothing about how a managed identity provider would issue, rotate or revoke the tokens.
+  - id: R-02
+    threat: TH-03
+    title: Manipulated or malformed answer stored as the summary
+    control: "C-02"
+    test: "tests/student/test_output_guardrail.py::test_manipulated_answer_needs_review_with_the_fixed_message"
+    evidence: "attack-dev:output_schema"
+    owner: "dispatch-lead"
+    residual: >-
+      An injected instruction that keeps the answer inside the schema, for example a permitted
+      but wrong next_step, passes the check and is stored as a summary a dispatcher may act on
+      (docs/security/output-policy.md, what the schema does not claim). The development
+      attack exercises only the supplied manipulated answer; a dispatcher must still judge
+      every stored summary against the shipment's own history before anyone acts on it.
+    mapping_note: ""
+  - id: R-03
+    threat: TH-06
+    title: Personal details in the handling note reach logs, the provider, and the record
+    control: "C-04"
+    test: "tests/student/test_redaction.py::test_no_marked_pii_from_n01_or_pii_echo_reaches_any_location"
+    evidence: "attack-dev:redactor"
+    owner: "privacy-lead"
+    residual: >-
+      The redactor recognizes three kinds at a fixed version with documented limits: in the
+      development attack the contact name that opens a sentence (RL-05 in
+      docs/security/redactor.md) reached the worker log line and the model request while the
+      phone number and the email address were replaced, and the stored reading and the queued
+      job keep the raw note in every run. A personal detail of an unrecognized shape reaches
+      the provider and the container logs on every such note; likely, because notes are free
+      text, and impact 4.
+    mapping_note: ""
+  - id: R-04
+    threat: TH-05
+    title: Summary reads leave no record of who read what
+    control: "C-03"
+    test: "tests/student/test_audit.py::test_one_interaction_leaves_every_listed_event_in_order"
+    evidence: "attack-dev:audit_trail"
+    owner: "platform-lead"
+    residual: >-
+      The trail records the worker's four events and every summary read that returns a stored
+      outcome, with the caller's subject and role; it records nothing about a request that
+      returned no stored outcome (an unknown id, an unfinished record, a refused token), and
+      nothing about who read the audit table itself, which both services reach with the one
+      shared PostgreSQL role (the C-03 limit in docs/security/control-matrix.md). A separate
+      database role for audit reads would narrow this; until then the table's readers are
+      unrecorded, and the impact is 3.
+    mapping_note: ""
+  - id: R-05
+    threat: TH-07
+    title: Provider key readable in the worker's configuration module
+    control: "C-05"
+    test: "tests/unit/adapters/test_provider_keys.py::test_every_authentication_reads_the_store_again"
+    evidence: "task-4.5 pull request https://github.com/tripleten-com/ai-system-engineering-curriculum-sprint-4-task-4-5/pull/1 commit 2f3c9a1d4e5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d"
+    owner: "platform-lead"
+    residual: >-
+      The key is read from LocalStack Secrets Manager on each request and a replaced version
+      takes effect without a restart, but the local store shows the read path and the version
+      check only (docs/fidelity/SecretProvider.md): any process holding the stack's development
+      credentials reads the secret, no access policy, encryption at rest or read audit is
+      shown, and the evidence is the Task 5 run, not a stage of the combined attack. Impact 3.
+    mapping_note: ""

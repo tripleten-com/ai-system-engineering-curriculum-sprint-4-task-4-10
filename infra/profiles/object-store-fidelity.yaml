@@ -1,0 +1,139 @@
+# Coldline - Task 2.8
+# File: infra/profiles/object-store-fidelity.yaml
+# Component: Object store emulator fidelity profile
+# Purpose: State published fidelity classifications and the limits of their evidence.
+# Interacts With: docs/fidelity/ObjectStore.md and the fidelity observation checks
+# Sprint/Task: Sprint 2 - Project 2 / Task 2.8
+# Concepts: Emulator fidelity, observed evidence, bounded claims
+# Tools: YAML
+
+# The published source for answers.fidelity_limitation. The answer enum
+# matches only the limitations keys, not coverage_gaps or withdrawn entries.
+# Membership is not evidence of release qualification.
+# docs/fidelity/ObjectStore.md explains the same evidence limits in prose.
+#
+# The supplied tests check a credential-acceptance observation and a pagination
+# coverage gap. The latter does not establish an emulator/AWS divergence.
+# Only the credential observation is an eligible assessment answer. Pagination stays
+# under coverage_gaps and is not an accepted fidelity answer. Additional owner
+# and environment review are deferred under ADR012-R05.
+
+schema_version: 2
+
+# LocalStack is an AWS emulator. What it emulates depends on which build,
+# edition, and configuration is running, so all of that is pinned rather than
+# implied: a limitation observed on one configuration is not a limitation of
+# "LocalStack" in general.
+emulator:
+  product: LocalStack
+  emulates: Amazon Web Services (AWS)
+  edition: Community
+  image: localstack/localstack:4.9.1
+  digest: sha256:ef90c3d6d69e36752d0154f9bc21099fc70dfbffc99a0145a6d7d04a721a6124
+  configuration:
+    SERVICES: s3
+    PERSISTENCE: "0"
+    EAGER_SERVICE_LOADING: "1"
+    DEBUG: "0"
+  region: us-east-1
+  credentials: fixed local development strings, not secrets, from compose.yaml
+  # The only S3 operations this repository performs. A divergence in an
+  # operation nothing here calls is outside the scope of these codes.
+  exercised_api_behavior:
+    - CreateBucket
+    - HeadBucket
+    - PutObject
+    - GetObject
+    - ListObjectsV2
+
+limitations:
+  credential_validation_gap:
+    applies_here: true
+    statement: >-
+      This configuration returns the corpus bucket's ListObjectsV2 listing
+      when signed with invented access credentials. The observation establishes
+      credential acceptance for that request in this configuration. It does not
+      establish whether IAM identity policies or bucket policies are enforced.
+    local_observation: >-
+      Signing a ListObjectsV2 request for the corpus bucket with an invented
+      access key and secret returns a nonempty listing rather than an error.
+      tests/contract/test_object_store_fidelity.py checks this behavior against
+      the pinned image; retain an actual run result before claiming qualification.
+    aws_behavior: >-
+      AWS authenticates a SigV4-signed request using the signing credentials;
+      invented credentials do not establish an authenticated AWS identity.
+      An unknown access key ID yields InvalidAccessKeyId (HTTP 403), not a listing.
+      ListObjectsV2 for a general purpose bucket requires s3:ListBucket
+      permission. Authentication and permission evaluation are distinct checks.
+    sources:
+      - https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html
+      - https://docs.aws.amazon.com/AmazonS3/latest/developerguide/ErrorResponses.html
+      - https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
+    scope: >-
+      Limited to the signed ListObjectsV2 request, corpus bucket/prefix, and
+      pinned emulator configuration exercised by the test. No IAM-policy or
+      bucket-policy allow/deny case is tested. It implies nothing about other
+      S3 operations, durability, consistency, or performance.
+
+coverage_gaps:
+  listing_pagination_not_exercised:
+    withdrawn_from_answer_enum: true
+    applies_here: true
+    statement: >-
+      The supplied adapter loops over continuation tokens to page a listing,
+      but the supplied corpus listing fits in one response. That run does not
+      exercise the continuation path. This is a test-coverage limitation, not
+      an observed difference between LocalStack and AWS pagination behavior.
+    local_observation: >-
+      The supplied check requires a nonempty ListObjectsV2 result with fewer
+      than 1000 keys, IsTruncated false, and no NextContinuationToken. It does
+      not force a second page or compare pagination responses across providers.
+    aws_behavior: >-
+      AWS returns at most 1000 keys per ListObjectsV2 response, sets
+      IsTruncated to true when more remain, and supplies
+      NextContinuationToken for the next page. See the AWS S3 API reference for
+      ListObjectsV2.
+    sources:
+      - https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
+    scope: >-
+      Applies to the supplied corpus run's listing coverage only. A small AWS
+      listing can also be untruncated. This observation therefore does not
+      qualify this code as an emulator divergence under ADR009-R08.
+
+# Codes withdrawn from the earlier draft list, with the reason. They are
+# recorded rather than deleted so the withdrawal is reviewable, and they are
+# absent from the answer enum.
+withdrawn:
+  policy_enforcement_gap:
+    reason: >-
+      Replaced by credential_validation_gap because the observed signed listing
+      tests credential acceptance, not IAM or bucket-policy enforcement.
+  distributed_consistency_difference:
+    reason: >-
+      The claim it rested on is false. Amazon S3 has provided strong
+      read-after-write consistency for PUT and DELETE, including for list
+      operations, since December 2020. Locally, writing an object and
+      immediately reading and listing it also succeeds, so there is no observed
+      divergence to describe - and describing AWS listings as eventually
+      consistent would state something untrue about AWS.
+  upload_part_handling_divergence:
+    reason: >-
+      No code in this repository can reach it. `S3ObjectStore.write` calls
+      PutObject with a whole body, and the adapter exposes no create-multipart,
+      upload-part, or complete-multipart path, so the divergence cannot affect
+      this system. A check asserts the adapter performs no multipart call, so
+      this reason cannot quietly stop being true.
+
+# Local-release decision under ADR012-R06. The answer list contains the
+# credential observation only; membership alone is not evidence of parity.
+# Additional environment and CME verification remain explicitly deferred.
+qualification:
+  status: local-release-candidate
+  authority: ADR012-R06
+  approval: source PR approval and merge
+  additional_environment_qualification: deferred
+  confirmed_by_cme: false
+  answer_enum_matches_qualified_list: true
+  limitations:
+    - The credential test provides no IAM-policy or bucket-policy enforcement evidence.
+    - Codespaces qualification and additional CME review are deferred under ADR012-R02/R05; no unperformed CME sign-off is asserted.

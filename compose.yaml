@@ -1,0 +1,308 @@
+# Coldline - Task 4.10
+# File: compose.yaml
+# Component: Local runtime topology
+# Purpose: Run the complete, settled Project 4 platform, including the development token issuer and LocalStack Secrets Manager, with one command.
+# Interacts With: API, worker, token issuer, PostgreSQL/pgvector, Redis, LocalStack S3/SQS/Secrets Manager, Jaeger, Prometheus, Grafana, Alertmanager, the OpenTofu and Trivy containers the infrastructure commands start
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.10
+# Concepts: Service orchestration, readiness, immutable releases, bounded resources, OIDC discovery, JWKS, audit table, model request record, a secret store beside the queue
+# Tools: Docker Compose
+
+# Supplied and not student-editable. Add-On 4.10 adds no service: `poe tofu-plan`,
+# `poe tofu-apply`, `poe tofu-destroy` and `poe verify` start OpenTofu in its own container
+# on this project's `coldline` network, where LocalStack answers as `localstack:4566`. The
+# startup code reads the bucket name, the visibility timeout and the maximum receive count
+# below; the queue names are the defaults in src/api/config.py.
+
+name: coldline-task-4-10
+
+x-coldline-environment: &coldline-environment
+  COLDLINE_DATABASE_URL: postgresql://coldline:coldline_local@postgres:5432/coldline
+  COLDLINE_REDIS_URL: redis://redis:6379/0
+  COLDLINE_OTEL_ENDPOINT: http://jaeger:4317
+  # LocalStack development values. Never replace them with a real credential.
+  # The same endpoint and credentials also reach the SQS client the queue
+  # adapter uses and, from Task 4.5, the Secrets Manager client the secret
+  # adapter uses: LocalStack serves every emulated service through one edge port.
+  COLDLINE_S3_ENDPOINT: http://localstack:4566
+  COLDLINE_S3_BUCKET: coldline-corpus
+  COLDLINE_S3_REGION: us-east-1
+  COLDLINE_S3_ACCESS_KEY_ID: localstack-development-key
+  COLDLINE_S3_SECRET_ACCESS_KEY: localstack-development-secret
+  # Task 3.3's settled dead-letter redrive policy, supplied and not student-editable.
+  COLDLINE_QUEUE_VISIBILITY_TIMEOUT_SECONDS: "30"
+  COLDLINE_QUEUE_MAX_RECEIVE_COUNT: "3"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+    environment:
+      POSTGRES_DB: coldline
+      POSTGRES_USER: coldline
+      POSTGRES_PASSWORD: coldline_local
+    healthcheck:
+      # TCP, not the Unix socket: first-boot setup runs a temporary socket-only
+      # server, so a socket probe can pass while port 5432 still refuses clients.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U coldline -d coldline"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      # First-boot setup can take tens of seconds on a busy runner; failed probes in
+      # this window do not count against the retries.
+      start_period: 30s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [coldline]
+
+  redis:
+    image: redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redis-data:/data
+    networks: [coldline]
+
+  # Task 4.5 added Secrets Manager to the emulated services. The initializer creates the
+  # worker's provider-key secret in it on every start (idempotent: an existing secret,
+  # replaced or not, is left as it is); the worker reads the current version through the
+  # supplied adapter. Persistence stays off, so `poe reset` and `poe start` give a store
+  # holding the first version again.
+  localstack:
+    profiles: ["localstack"]
+    image: localstack/localstack:4.9.1@sha256:ef90c3d6d69e36752d0154f9bc21099fc70dfbffc99a0145a6d7d04a721a6124
+    environment:
+      SERVICES: s3,sqs,secretsmanager
+      DEBUG: "0"
+      EAGER_SERVICE_LOADING: "1"
+      PERSISTENCE: "0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "127.0.0.1:${COLDLINE_LOCALSTACK_HOST_PORT:-4566}:4566"
+    networks: [coldline]
+
+  # Task 4.2's development token issuer, settled. It serves two static documents over plain
+  # HTTP on the Compose network and on one host port: the OIDC discovery document and the
+  # key set (JWKS) holding the one RS256 public key the token fixtures were signed with.
+  # It signs nothing at runtime; the private key never enters this repository. The
+  # issuer identifier is fixed (`https://issuer.coldline.test`) so the fixtures' `iss`
+  # claim does not change when the host port is remapped; the discovery document's
+  # `jwks_uri` is rendered at container start from the host port actually in use. The
+  # same pinned python:3.12 base image the API and worker build from, so no new pull.
+  issuer:
+    image: python:3.12-slim-bookworm@sha256:0f5b26b9518d002b6173fd61daad821fa340635ebfec5bba471013f9ca114579
+    command: ["python", "/srv/issuer/serve.py"]
+    environment:
+      COLDLINE_ISSUER_HOST_PORT: ${COLDLINE_ISSUER_HOST_PORT:-8180}
+    volumes:
+      - ./infra/issuer:/srv/issuer:ro
+    ports:
+      - "127.0.0.1:${COLDLINE_ISSUER_HOST_PORT:-8180}:8180"
+    user: "65534:65534"
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8180/.well-known/openid-configuration', timeout=2)",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks: [coldline]
+
+  # The initializer creates the schema from infra/postgres/ and brings it to the committed
+  # migration head on every start: from Task 4.3 that includes the NEEDS_REVIEW state, the
+  # three output fields on `exceptions`, and the `audit_events` table. From Task 4.5 it
+  # also creates the provider-key secret in LocalStack Secrets Manager, so it waits for
+  # LocalStack's health check as it waits for the database and Redis: an initializer
+  # that ran while LocalStack was still booting would fail to create the secret. Every
+  # supplied command starts the stack with `--profile localstack`, which the dependency
+  # needs.
+  initializer:
+    image: coldline-api:${COLDLINE_RELEASE_TAG:-3.1.0}
+    build:
+      context: .
+      dockerfile: infra/containers/api.Dockerfile
+      args:
+        COLDLINE_BUILD_VERSION: ${COLDLINE_RELEASE_TAG:-3.1.0}
+    command: ["python", "-m", "api.initialize"]
+    environment: *coldline-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Task 4.5: the initializer creates the provider-key secret in LocalStack. `required:
+      # false` keeps Compose commands that do not enable the localstack profile valid.
+      localstack:
+        condition: service_healthy
+        required: false
+    restart: "no"
+    networks: [coldline]
+
+  api:
+    image: coldline-api:${COLDLINE_RELEASE_TAG:-3.1.0}
+    build:
+      context: .
+      dockerfile: infra/containers/api.Dockerfile
+      args:
+        COLDLINE_BUILD_VERSION: ${COLDLINE_RELEASE_TAG:-3.1.0}
+    environment:
+      <<: *coldline-environment
+      # Task 4.2: the API cannot open the host `localhost` port config/auth.yaml names in
+      # `jwks_url`, so the TokenVerifier swaps that URL's origin for the issuer's
+      # in-network origin and keeps the path. README.md documents the mapping.
+      COLDLINE_ISSUER_JWKS_ORIGIN: http://issuer:8180
+    depends_on:
+      initializer:
+        condition: service_completed_successfully
+      issuer:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${COLDLINE_API_HOST_PORT:-8000}:8000"
+    restart: unless-stopped
+    # Readiness, not liveness: the gate holds `up --wait` until the build can serve.
+    # start_period covers the candidate's 20 s warm-up so those early 503s do not
+    # count against the retry budget.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=2)",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    networks: [coldline]
+
+  worker:
+    image: coldline-worker:${COLDLINE_RELEASE_TAG:-3.1.0}
+    build:
+      context: .
+      dockerfile: infra/containers/worker.Dockerfile
+      args:
+        COLDLINE_BUILD_VERSION: ${COLDLINE_RELEASE_TAG:-3.1.0}
+    environment:
+      <<: *coldline-environment
+      COLDLINE_CONSUMER_NAME: worker-1
+      COLDLINE_MAXIMUM_ATTEMPTS: "3"
+      COLDLINE_STALE_MESSAGE_MS: "30000"
+      COLDLINE_MODEL_LATENCY_MS: "250"
+      COLDLINE_METRICS_PORT: "9100"
+      # Task 4.4 tooling: the model emulator writes the text of every request it receives
+      # to one file per exception under this directory (the worker user's home, writable
+      # inside the container), so `poe pii-scan`, `poe model-request` and `poe attack-dev`
+      # can read what the provider was sent. The records live and die with the container.
+      COLDLINE_MODEL_REQUEST_DIR: /home/coldline/model-requests
+      # Task 4.5 tooling: the model emulator writes the outcome of each key authentication
+      # (the version id and a fingerprint, never the value) to this file, so
+      # `poe provider-auth-check` can read which version the worker last authenticated
+      # with. The record lives and dies with the container.
+      COLDLINE_PROVIDER_AUTH_RECORD: /home/coldline/provider-auth.json
+    depends_on:
+      initializer:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # Docker's init runs as PID 1 and forwards the stop signal. Python as PID 1
+    # ignores a SIGTERM that arrives before its own handler is installed, so a
+    # stop during startup would wait out the grace period and kill the worker
+    # mid-poll, leaving an open receive that captures the next message.
+    init: true
+    healthcheck:
+      test: ["CMD", "python", "-m", "worker.health"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    networks: [coldline]
+
+  jaeger:
+    profiles: ["observability"]
+    image: jaegertracing/all-in-one:1.76.0@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
+    user: "0:0" # Badger must initialize its named volume.
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: badger
+      BADGER_EPHEMERAL: "false"
+      BADGER_DIRECTORY_KEY: /badger/key
+      BADGER_DIRECTORY_VALUE: /badger/data
+    volumes:
+      - jaeger-data:/badger
+    ports:
+      - "127.0.0.1:${COLDLINE_JAEGER_HOST_PORT:-16686}:16686"
+    networks: [coldline]
+
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v3.12.0@sha256:69f5241418838263316593f7274a304b095c40bcf22e57272865da91bd60a8ac
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${COLDLINE_PROMETHEUS_HOST_PORT:-9090}:9090"
+    depends_on: [alertmanager]
+    networks: [coldline]
+
+  # Task 3.4 adds Alertmanager. Its own config declares a real receiver name
+  # ("default") with no configured notification integration: alerts must be
+  # queryable through its own API without sending anywhere real.
+  alertmanager:
+    profiles: ["observability"]
+    image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./infra/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "127.0.0.1:${COLDLINE_ALERTMANAGER_HOST_PORT:-9093}:9093"
+    networks: [coldline]
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:13.1.1@sha256:7cb8c64c4d57a57e734073f3cc94620adb24a0acb929bd80ba9f14017e3a975b
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./infra/observability/grafana:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${COLDLINE_GRAFANA_HOST_PORT:-3000}:3000"
+    depends_on: [prometheus, jaeger]
+    networks: [coldline]
+
+networks:
+  coldline:
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  jaeger-data:
+  alertmanager-data:

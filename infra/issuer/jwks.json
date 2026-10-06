@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "coldline-dev-2026",
+      "use": "sig",
+      "alg": "RS256",
+      "n": "mZ_wnAZW-DfNI3rveuJeFnfZZPWLlO39zudPFqtkFyOhDOLogImKHNjfo_0eTpqMvxvETDPNoMoSdn5hsg42MZGZPyTPC7HJvr0f4YNd03742qvG4t1FRYGw_v50pDeQNug7woyAkGMnIcCQMZwYb0sofq7Q2XJ0QyN2DRcAq_muUucziwa6nszBcgjX8JBc13NSjhxYpoS3QLjNiW--On-Busgx2usFAboT7UqNq_6pzotWz0gH4wZ-gRVX-xQ59uTDT43UGfW6tAGwSt7v6ozlE98_rYnraYsPECSvZwBZP0uMxItsfbNUOkdVU2IbutNFars8by2edwv0LL98wQ",
+      "e": "AQAB"
+    }
+  ]
+}

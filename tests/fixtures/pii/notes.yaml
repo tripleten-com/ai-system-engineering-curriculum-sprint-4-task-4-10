@@ -1,0 +1,53 @@
+# Coldline - Task 4.4
+# File: tests/fixtures/pii/notes.yaml
+# Component: Supplied synthetic handling notes
+# Purpose: The handling notes `poe scenario --note <id>` sends, each with the PII values it is marked to contain.
+# Interacts With: tests/e2e/scenario.py, tests/security/pii.py, tests/security/pii_scan.py, tests/security/redaction_report.py, tests/security/interaction.py
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.4
+# Concepts: Synthetic test data, marked values, redaction evidence
+# Tools: YAML
+
+# Every note is synthetic. Phone numbers use the fictional 555-01xx range, email addresses
+# use the reserved example.com and example.org domains, and every person named is invented.
+# `pii` lists the values the fixture marks as personal detail in that note: `poe pii-scan`
+# searches the four locations for exactly these values, and `poe redaction-report` prints
+# them beside the redactor's output so the two can be compared. A note with no personal
+# detail lists none. Keep the file as supplied.
+notes:
+  - id: N-01
+    text: "Re-ice before the pallet leaves the relay and send the temperature log to dispatch@example.com, or call 555-0142 if the cold room is above 8 C."
+    pii:
+      - kind: phone
+        value: "555-0142"
+      - kind: email
+        value: "dispatch@example.com"
+  - id: N-02
+    text: "Hold the pallet at the relay. Ask for Tomasz Zielinski at the desk, or ring 555-0173 before the evening run."
+    pii:
+      - kind: name
+        value: "Tomasz Zielinski"
+      - kind: phone
+        value: "555-0173"
+  - id: N-03
+    text: "Keep the seal intact until the lab confirms the cold room is below 8 C; do not open the pallet at the relay."
+    pii: []
+  - id: N-04
+    text: "Second excursion this week for this lane. Send the log to qa-review@example.org and keep the pallet sealed."
+    pii:
+      - kind: email
+        value: "qa-review@example.org"
+  - id: N-05
+    text: "Contact Northgate Depot before the pallet moves; the cold room there holds it until collection."
+    pii: []
+  - id: N-06
+    text: "If the probe reads above 8 C again, notify Amara Okafor by email at a.okafor@example.com and hold the pallet."
+    pii:
+      - kind: name
+        value: "Amara Okafor"
+      - kind: email
+        value: "a.okafor@example.com"
+  - id: N-07
+    text: "Pallet must be re-iced within the hour; call +1 555 0188 for the relay supervisor."
+    pii:
+      - kind: phone
+        value: "+1 555 0188"

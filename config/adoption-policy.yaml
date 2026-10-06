@@ -1,0 +1,156 @@
+# Coldline - Task 2.7
+# File: config/adoption-policy.yaml
+# Component: Published adoption decision rule
+# Purpose: Carry the constants the published keep-or-revert rule is evaluated with.
+# Interacts With: tests/benchmark/policy.py and the experiment checks
+# Sprint/Task: Sprint 2 - Project 2 / Task 2.7
+# Concepts: Published decision rule, calibrated constants, release gate
+# Tools: YAML
+
+# This file is supplied, not student-editable, and the checks read it rather
+# than any value written into a test. The rule below is fixed; only its two
+# constants are calibrated, and they are calibrated by the benchmark owner
+# against the supported environment profiles, never by a student and never by
+# whoever happens to be running the harness.
+#
+# The rule, with R0/R1 the baseline and experiment Recall@K at the same
+# evaluation cutoff and L0/L1 their p95 latencies in milliseconds:
+#
+#   keep = (R1 >= R0) and (L1 <= B) and ((R1 > R0) or ((L0 - L1) > T))
+#
+# and revert otherwise, for a comparison whose two reports are valid. Equality
+# with the budget B is allowed; equality with the tolerance T is not enough. A
+# recall increase still has to meet the budget, and a recall loss is never
+# accepted. It is a bounded teaching policy, not a claim about the best
+# production decision in every setting.
+#
+# This local release publishes the calibrated teaching constants under ADR012-R04.
+# Missing or unpublished policies still fail closed; an unavailable policy never
+# becomes a default decision. The source PR approves this bounded release, while
+# additional environment and owner review remain explicitly deferred below.
+
+schema_version: 1
+published: true
+
+# B: the positive p95 latency budget the experiment arm must meet, in the units
+# below. A number once published.
+latency_budget_ms: 14.0
+# T: the positive latency tolerance a p95 improvement must exceed before it can
+# carry a keep decision on its own, in the same units. A number once published.
+latency_tolerance_ms: 3.8
+
+units: milliseconds
+
+# The published calculation and rounding convention. Both arms' figures are
+# compared, and matched against a recorded answer, at exactly this precision:
+# a difference below the last published place is not a difference.
+rounding:
+  recall_places: 3
+  latency_places: 1
+  convention: half_even
+  # Python's round() is half-to-even, which is what the harness and the checks
+  # both use. Naming it here keeps a recorded answer and a report from
+  # disagreeing on a value that sits exactly on a boundary.
+
+# What the benchmark owner records when B and T are published. Every field is
+# part of the release gate; an entry that names no procedure and no observed
+# variability is not a calibration.
+calibration:
+  # Local teaching-policy approval under ADR012-R05; additional specialist review is deferred.
+  owners:
+    - Curriculum leadership via source PR approval under ADR012-R05
+  # How B and T were derived from repeated runs, in enough detail to repeat.
+  procedure: >-
+    Ten captures each of baseline, expanded and reduced configurations in rotating
+    order. T is the larger baseline/expanded between-run p95 range rounded up to
+    0.1 ms, plus 0.1 ms. B is maximum expanded p95 plus T, rounded up to 0.1 ms.
+    This is a bounded teaching policy, not a production SLO or confidence bound.
+  # The supported environment profiles the runs were made on.
+  environment_profiles:
+    - Windows 11 x86_64, Docker Engine 29.5.3 via Docker Desktop Linux containers, 12 CPUs, 16682045440 bytes memory
+  # The spread the repeated runs actually showed, which is what T has to clear.
+  observed_variability:
+    captured_at: "2026-09-12T11:25:10.328586+00:00"
+    source_commit: 416178ec4adfb981bd9acbffaed9a38724af4d90
+    materialized_commit: 072ed94bd5ac0e04fff2112150f8a7e025ce29ec
+    helper_sha256: b5d289884cebd1fcdb16c2fd61b3864be0a1e421149fa8cda0163069f9029a2f
+    captures_per_configuration: 10
+    baseline_p95_range_ms: [6.8, 10.5]
+    expanded_p95_range_ms: [6.7, 10.2]
+    reduced_p95_range_ms: [6.2, 9.1]
+    maximum_between_run_range_ms: 3.7
+    historical_investigation:
+      p95_range_ms: [8.4, 50.6]
+      source: docs/student/task-2-7-contract.md
+      conditions: Earlier observation; full host conditions not retained with this calibration.
+      limit: Not a guarantee of timing stability on this or another host.
+  # Actual local cases and immutable identities; no private inputs are exported.
+  qualification_provenance:
+    source_commit: 83d9c4c2700795abdd78e35e425bc3f8ee89845d
+    materialized_commit: b98cbfa68a9f80dbbd4fc3bd038c0ef49d3231a5
+    environment:
+      os: Windows-11-10.0.26200-SP0
+      python: 3.12.13
+      docker_engine: 29.5.3
+      docker_cpus: 12
+      docker_memory_bytes: 16682045440
+      compose: 5.1.4
+    decision_helper_sha256: 9bf6a8ac5f0ef4426e28c06570206cf23b3e1666659d968449133a8f35b12128
+    qualification_runner_sha256: 5b7838568ea6a37d09b3d5431393a6d2f7dc1a942672896848d3698f975fec1d
+    scope: Local qualification; retained reports remain private. Subsequent case metadata does not
+      alter the graded policy.
+  qualified_cases:
+  - case: measured-revert
+    reports:
+      baseline:
+        run_id: e37df63dffb1455cb2e1a519e6a9ef0a
+        captured_at: '2026-09-13T10:16:24Z'
+        sha256: 00b5807b2307f09916a3a69804e451690e97c9e13aa1f933ce9723f6312977ea
+      experiment:
+        run_id: bec8f7bb27034d33a50dddd6f7f05029
+        captured_at: '2026-09-13T10:16:29Z'
+        sha256: 159ade0c4bb7e52317599eb0705f243fccbe3d5a58153efb024a2c741812e8d7
+    materialized_commit: b98cbfa68a9f80dbbd4fc3bd038c0ef49d3231a5
+    capture_context: Planned reference completion
+    correct_decision_exit: 0
+    opposite_decision_exit: 1
+    decision_evidence_sha256: d055f2625c8afc669a96c7e0c1d8d7cea69cc14d359326a51baefa5400a2c75e
+  - case: measured-keep
+    reports:
+      baseline:
+        run_id: 1ea28ebe6e49448e95aa3b0cb02fb198
+        captured_at: '2026-09-13T10:19:17Z'
+        sha256: 1f72b90b08bf9a1d59f413f2c6ae0f6f755df39919c4e7c561dca9457fb55338
+      experiment:
+        run_id: b246d1feb532453f9eb184cfe081c915
+        captured_at: '2026-09-13T10:19:21Z'
+        sha256: fdc2e03c5346a6ad7c6e52d522c129aa0d1d014fd220ad08369b994f3696dcd9
+    materialized_commit: bf7aa9770e27b3d1be2725b824b62771f622db29
+    capture_context: Planned reference incorrect-answer case; reports reused byte-for-byte, only answer
+      sheet corrected in a separate workspace.
+    correct_decision_exit: 0
+    opposite_decision_exit: 1
+    decision_evidence_sha256: 96e80125f66116abb92b99d1fff278c4eaeae9c4195a6b1f90cae75752b67b90
+  - case: answer-report-measurement-mismatch-rejected
+    reports:
+      baseline:
+        run_id: 1ea28ebe6e49448e95aa3b0cb02fb198
+        captured_at: '2026-09-13T10:19:17Z'
+        sha256: 1f72b90b08bf9a1d59f413f2c6ae0f6f755df39919c4e7c561dca9457fb55338
+      experiment:
+        run_id: b246d1feb532453f9eb184cfe081c915
+        captured_at: '2026-09-13T10:19:21Z'
+        sha256: fdc2e03c5346a6ad7c6e52d522c129aa0d1d014fd220ad08369b994f3696dcd9
+    assessment_exit: 1
+    assertion: test_recorded_quality_metrics_match_the_retained_reports
+    assessment_evidence_sha256: c7ed31bbf646ad3d85738fd35e9485df1735f9506ee7e413a9969066c0ad207d
+
+# Local-release approval follows ADR012-R04/R05. Additional environment and
+# benchmark-owner sign-off remain explicitly separate from the source PR decision.
+qualification:
+  status: local-release-candidate
+  authority: ADR012-R04-R05
+  approval: source PR approval and merge
+  additional_environment_qualification: deferred
+  # No unperformed benchmark-owner sign-off is asserted; ADR012-R05 governs this release.
+  confirmed_by_benchmark_owner: false

@@ -1,0 +1,24 @@
+# Coldline - Task 3.5
+# File: infra/observability/alerts.yml
+# Component: Prometheus alerting rule
+# Purpose: Define the one required user-impact SLO alert.
+# Interacts With: Prometheus, Alertmanager
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.5
+# Concepts: SLO/alert, dead-letter redrive, CI reliability gate
+
+# Task 3.4's own settled alert window. Not this Task's editable surface: Task 3.5
+# assesses a CI gate that protects this value (or Task 3.3's queue redrive budget,
+# in compose.yaml), not the value itself. tests/contract/reliability_gate.py's own
+# live proof temporarily reverts this `for` back to 90s — Task 3.4's own known
+# starting-broken value — and restores it, entirely inside one pytest run, when the
+# wired reliability-gate job runs `poe slo-contract`.
+groups:
+  - name: coldline-recovery
+    rules:
+      - alert: ColdlineDeadLetterQueueBacklog
+        expr: coldline_job_queue_dead_letter_depth > 0
+        for: 15s
+        labels:
+          severity: page
+        annotations:
+          summary: "A shipment exception has sat dead-lettered without recovery."

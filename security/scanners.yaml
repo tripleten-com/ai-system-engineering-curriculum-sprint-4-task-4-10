@@ -1,0 +1,41 @@
+# Coldline - Task 4.5
+# File: security/scanners.yaml
+# Component: Scanner pins
+# Purpose: Name the three scanner images and the vulnerability database the security gate runs, each pinned by digest.
+# Interacts With: poe security-setup, poe security-scan, .github/workflows/security.yml, docs/security/gate-policy.md
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.5
+# Concepts: Pinned tools, a vulnerability database frozen at one digest, re-pinning as a recorded step
+# Tools: Docker, Semgrep, Trivy, Gitleaks
+
+# Supplied and not student-editable. `poe security-scan` runs each scanner through
+# `docker run` with the repository's files mounted read-only and the network off; the
+# security-gate job runs the same command, so the hosted gate and your terminal see one
+# tool set. The version is recorded beside the digest for a reader; the digest is what
+# Docker pulls.
+scanners:
+  semgrep:
+    image: semgrep/semgrep
+    version: "1.178.0"
+    digest: "sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b"
+  trivy:
+    image: aquasec/trivy
+    version: "0.75.0"
+    digest: "sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
+  gitleaks:
+    image: zricethezav/gitleaks
+    version: "v8.30.1"
+    digest: "sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f"
+
+# Trivy's vulnerability database, pinned to one published digest so a scan today and a
+# scan next month judge the same lockfile the same way. `poe security-setup` downloads it
+# once into the ignored cache directory; every scan then runs with the database update
+# skipped. When the registry no longer serves this digest, the re-pin step in
+# docs/security/gate-policy.md records the new one here.
+trivy_db:
+  repository: ghcr.io/aquasecurity/trivy-db
+  digest: "sha256:2c3e2bb233251c08554fbbdcf719756aaf66ed4f18270f4cf20a519381b05c3e"
+  cache: .tools/trivy-cache
+  # Whether findings with no fixed version are left out of the gate's verdict (they are
+  # still reported). Off: every finding counts. docs/security/gate-policy.md records the
+  # decision if this is ever turned on.
+  ignore_unfixed: false

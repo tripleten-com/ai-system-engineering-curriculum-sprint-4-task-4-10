@@ -1,0 +1,30 @@
+# Coldline - Task 3.4
+# File: infra/observability/prometheus.yml
+# Component: Prometheus scrape and alerting configuration
+# Purpose: Collect bounded API and worker metrics, and evaluate the one SLO alert.
+# Interacts With: API and worker metric endpoints, Alertmanager
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.4
+# Concepts: Metrics collection, SLO/alert
+# Tools: Prometheus
+
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+# Task 3.4 adds the one rule file and the one Alertmanager target. The rule
+# itself lives in the student-editable infra/observability/alerts.yml.
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: coldline-api
+    static_configs:
+      - targets: ["api:8000"]
+  - job_name: coldline-worker
+    static_configs:
+      - targets: ["worker:9100"]

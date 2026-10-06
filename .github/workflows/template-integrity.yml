@@ -1,0 +1,138 @@
+# Coldline
+# File: .github/workflows/template-integrity.yml
+# Component: Export-PR integrity CI
+# Purpose: Verify a generated export still builds, starts, ingests, and runs end to end.
+# Interacts With: uv, Poe, Docker Compose
+# Sprint/Task: Sprint 3 - Project 3
+# Concepts: Generated-artifact verification
+# Tools: GitHub Actions
+
+# Why this exists, separately from task.yml:
+#
+# task.yml runs `poe verify`, the STUDENT contract. A freshly exported starter is supposed to fail
+# it: the answer sheet is blank, and later Sprint 2 starters also leave their assessed work
+# unimplemented. That is the exercise. But export PRs are also pull requests, so every export PR
+# was red too, and a genuine export regression looked exactly like the normal red.
+#
+# This workflow runs only on export branches and checks the half of the contract that MUST be
+# green on a fresh starter regardless of Task: the repository lints and type-checks, the stack
+# builds and becomes ready, the supplied corpus ingests, the supplied retrieval platform answers,
+# and the inherited end-to-end path works. It deliberately never runs a Task's exercise gates, so
+# it ships no hint about which checks a student is meant to satisfy.
+
+name: Template integrity
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integrity:
+    # Export branches only. On a student's PR this is the wrong contract — task.yml is the one
+    # that matters there — so skip rather than add a second, confusing check.
+    if: >-
+      startsWith(github.head_ref, 'export/')
+      || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repository
+        # actions/checkout v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        # actions/setup-python v6.0.0
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: "3.12"
+      - name: Install pinned tooling
+        run: |
+          python infra/scripts/bootstrap.py
+          python infra/scripts/preflight.py
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+          .tools/bin/uv sync --frozen
+      # This mirrors `poe author-verify` with its configured unit command and one
+      # deliberate exclusion: the submission boundary cannot apply to an export refresh.
+      #
+      # Sprint 1 Tasks 1.4-1.6 and every Sprint 2 Task carry a student-submission boundary test
+      # inside `poe contract` (`test_submission_change_stays_within_the_permitted_diff`). It
+      # asserts the diff from the merge base stays inside that Task's student-editable paths. A
+      # generated export PR necessarily changes more than that — workflow files, tooling, docs — so
+      # on an export branch the test is being asked a question it cannot meaningfully answer.
+      #
+      # Deselecting it here does NOT weaken the student gate: `poe author-verify` still runs it in
+      # full, and the same boundary is enforced again by the protected review workflow where one
+      # exists.
+      - name: Check the authoring profile (student-boundary tests deselected)
+        run: |
+          .tools/bin/uv run --frozen poe format-check
+          .tools/bin/uv run --frozen poe lint
+          .tools/bin/uv run --frozen poe typecheck
+          unit_task=$(.tools/bin/uv run --frozen python -c 'import tomllib; tasks = tomllib.load(open("pyproject.toml", "rb"))["tool"]["poe"]["tasks"]; print(next(name for name in tasks["author-verify"] if name in {"unit", "unit-static"}))')
+          .tools/bin/uv run --frozen poe "$unit_task"
+          .tools/bin/uv run --frozen pytest tests/contract -m 'not runtime and not assessed and not submission_boundary'
+          .tools/bin/uv run --frozen poe structure
+          .tools/bin/uv run --frozen poe compose-config
+      # Registry pulls are the one network-dependent part of startup, so they are retried
+      # with backoff here; `poe start` below then finds every image already present.
+      - name: Pull and build the pinned images
+        run: |
+          compose="docker compose --profile observability --profile localstack"
+          for attempt in 1 2 3 4; do
+            if $compose pull --quiet --ignore-buildable && $compose build; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 4 ]; then
+              echo "::warning::image pull or build attempt $attempt failed; retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::image pull or build failed after 4 attempts"
+          exit 1
+      - name: Start the pinned runtime
+        run: .tools/bin/uv run --frozen poe start
+      - name: Wait for readiness
+        run: .tools/bin/uv run --frozen poe ready
+      - name: Ingest the supplied corpus
+        run: .tools/bin/uv run --frozen poe ingest
+      - name: Check the running platform
+        run: .tools/bin/uv run --frozen poe smoke
+      - name: Check the supplied retrieval platform
+        run: .tools/bin/uv run --frozen poe retrieval-runtime
+      - name: Run the end-to-end workflow
+        run: .tools/bin/uv run --frozen poe e2e
+      - name: Run the scenario walkthrough
+        run: .tools/bin/uv run --frozen poe scenario
+      - name: Run the baseline retrieval evaluation
+        run: .tools/bin/uv run --frozen poe baseline
+      # On failure or cancellation (a `timeout-minutes` stop included), and before `poe reset`
+      # removes the containers: every service's logs, the initializer's included, so a
+      # startup failure leaves its reason behind. The initializer, API and worker show their
+      # last 2000 lines and every other service its last 200, so a chatty service cannot bury
+      # them. When `compose ps` finds no container (a job that failed before the runtime
+      # started) or cannot run at all, the step says so instead of printing empty groups.
+      - name: Show the runtime logs on failure
+        if: failure() || cancelled()
+        run: |
+          compose="docker compose --profile observability --profile localstack"
+          if [ -z "$($compose ps --all --quiet 2>/dev/null)" ]; then
+            echo "No runtime containers to show."
+            exit 0
+          fi
+          $compose ps --all || true
+          for service in $($compose config --services); do
+            case "$service" in
+              initializer|api|worker) tail=2000 ;;
+              *) tail=200 ;;
+            esac
+            echo "::group::$service logs (last $tail lines at most)"
+            $compose logs --no-color --timestamps --tail "$tail" "$service" || true
+            echo "::endgroup::"
+          done
+      - name: Stop the runtime
+        if: always()
+        run: .tools/bin/uv run --frozen poe reset

@@ -1,0 +1,43 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(coldline_exception_processing_duration_seconds_bucket[5m]))) and on() (sum(rate(coldline_exception_processing_duration_seconds_bucket{le=\"5.0\"}[5m])) > 0)",
+          "refId": "A"
+        }
+      ],
+      "title": "Exception processing p95",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "targets": [{"expr": "coldline_job_queue_pending_messages", "refId": "A"}],
+      "title": "Pending queue messages",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "targets": [{"expr": "sum(rate(coldline_api_requests_total[5m]))", "refId": "A"}],
+      "title": "API request rate",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 42,
+  "tags": ["coldline", "task-1-1"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "title": "Coldline Diagnostics",
+  "uid": "coldline-diagnostics",
+  "version": 1
+}

@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Coldline: start",
+      "type": "shell",
+      "command": "uv run --frozen poe start",
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Coldline: verify",
+      "type": "shell",
+      "command": "uv run --frozen poe verify",
+      "problemMatcher": [],
+      "group": {"kind": "test", "isDefault": true}
+    },
+    {
+      "label": "Coldline: scenario",
+      "type": "shell",
+      "command": "uv run --frozen poe scenario",
+      "problemMatcher": []
+    },
+    {
+      "label": "Coldline: stop",
+      "type": "shell",
+      "command": "uv run --frozen poe stop",
+      "problemMatcher": []
+    }
+  ]
+}

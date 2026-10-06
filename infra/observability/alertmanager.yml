@@ -1,0 +1,23 @@
+# Coldline - Task 3.4
+# File: infra/observability/alertmanager.yml
+# Component: Alertmanager configuration
+# Purpose: Receive and hold alerts Prometheus forwards, queryable through its own API.
+# Interacts With: Prometheus
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.4
+# Concepts: SLO/alert
+# Tools: Alertmanager
+
+# Supplied and complete. This Task's alert is proven by querying Alertmanager's
+# own API (GET /api/v2/alerts), not by a real notification landing anywhere: the
+# "default" receiver below configures no email, Slack, webhook, or paid
+# integration, on purpose. Do not add one; Sprints 1-4 are emulator-only and
+# never call a hosted endpoint.
+route:
+  receiver: default
+  group_by: ["alertname"]
+  group_wait: 5s
+  group_interval: 5s
+  repeat_interval: 1h
+
+receivers:
+  - name: default

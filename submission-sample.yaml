@@ -1,0 +1,31 @@
+# Coldline - Task 4.10
+# File: submission-sample.yaml
+# Component: Fictional completed answer sheet
+# Purpose: Show the accepted shape.
+# Interacts With: docs/contracts/submission.schema.json
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.10
+# Concepts: Answer-sheet shape
+# Tools: YAML
+
+# Complete submission.yaml from the commands named beside each answer.
+# Keep the supplied keys; replace the empty values using each field's stated values.
+# Empty values and placeholder text fail verification.
+# Use submission-sample.yaml for format only; do not copy its fictional values.
+# Do not include secrets, personal data, or local absolute paths.
+# This fictional sample is not a result to submit; an exact copy is rejected. The counts are
+# invented and describe no declaration of this Task; AVD-EXAMPLE-0000 is no Trivy check id;
+# the two local limits are picked to show a list, and say nothing about which options the
+# local run can establish; the triage decision and the recommendation each show one of their
+# allowed values. The sheet shows the shape only.
+
+answers:
+  plan_add_count: 7
+  diff_count_before: 5
+  diff_count_after: 2
+  triaged_finding: "AVD-EXAMPLE-0000"
+  triage_decision: accept
+  destroy_count: 6
+  local_limits:
+    - names_from_prefix
+    - state_locking
+  recommendation: with_changes

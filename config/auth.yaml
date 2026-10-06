@@ -1,0 +1,30 @@
+# Coldline - Task 4.2
+# File: config/auth.yaml
+# Component: Token verification settings
+# Purpose: Configure the supplied TokenVerifier: the issuer it trusts, the audience it serves, where its keys are, and the clock allowance.
+# Interacts With: src/api/security/tokens.py, the issuer's discovery document, docs/security/access-policy.md
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.2
+# Concepts: OIDC discovery, JWKS, pinned algorithms, clock leeway
+# Tools: YAML
+
+# Supplied Task 4.2 completion, carried forward unchanged. Not student-editable in Task 4.3.
+# jwks_url names the default issuer host port (8180). Keep it as it is when you remap
+# COLDLINE_ISSUER_HOST_PORT: host-side tools resolve the issuer's origin from that variable
+# (tests/security/issuer_origin.py), and the API maps it to the Compose-network origin.
+
+# The `issuer` value of the issuer's discovery document (README.md lists its URL).
+issuer: "https://issuer.coldline.test"
+
+# The API audience in docs/security/access-policy.md: the name of the API a token is
+# for, not the party that signed it.
+audience: "coldline-api"
+
+# The `jwks_uri` value of the discovery document, as printed.
+jwks_url: "http://localhost:8180/.well-known/jwks.json"
+
+# A list holding only the `alg` the key set at jwks_url declares.
+algorithms: ["RS256"]
+
+# The allowance, in whole seconds, for clock differences between machines, inside the
+# range docs/security/access-policy.md allows (0 to 60).
+leeway_seconds: 30

@@ -1,0 +1,20 @@
+# Coldline - Task 2.7
+# File: config/student/retrieval.yaml
+# Component: Adopted retrieval configuration
+# Purpose: Hold the retrieval parameters the Task 2.7 experiment adopted.
+# Interacts With: tests/benchmark/config.py and the evaluation harness
+# Sprint/Task: Sprint 2 - Project 2 / Task 2.7
+# Concepts: Controlled experiment, single-variable change
+# Tools: YAML
+
+# Supplied and protected. The Task 2.8/2.9 product composition loads these
+# parameters. Both this file and config/retrieval-baseline.yaml are protected.
+# Capture with `poe benchmark-baseline` and `poe benchmark-experiment`, then
+# read those reports with `poe compare`. The local policy is now published;
+# this checkpoint alone is not evidence of a qualified keep/revert decision.
+#
+# A student's own Task 2.7 experiment stays in that Task's pull request and
+# never has to match this file.
+retrieval:
+  top_k: 8
+  fusion_weight: 0.5

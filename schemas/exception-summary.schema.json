@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coldline.test/schemas/exception-summary.schema.json",
+  "$comment": "Coldline Task 4.3 supplied output schema. Supplied and settled: src/worker/guardrail.py enforces it and the worker stores only what passes it. Strict on purpose: every property is required, no other property is accepted, the two classifications are closed lists, and every string is bounded. The emulator's default answer satisfies it; the supplied bad answers do not. Do not loosen it.",
+  "title": "Coldline exception summary",
+  "description": "The one document the model provider may answer an exception-resolution request with. The guardrail validates the provider's raw answer against this schema before the worker stores anything from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "handling_class", "next_step", "procedure_id", "response_id"],
+  "properties": {
+    "summary": {
+      "description": "The dispatcher-facing summary of the excursion. Free text within the length bound; it is advice for a person to judge, never an instruction the system acts on.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "handling_class": {
+      "description": "Which handling situation the answer classifies the reading as. A closed list: a value outside it is rejected, not mapped.",
+      "type": "string",
+      "enum": [
+        "thermal_excursion",
+        "seal_integrity",
+        "equipment_failure",
+        "documentation_hold",
+        "handling_rule_breach"
+      ]
+    },
+    "next_step": {
+      "description": "The one next step the answer recommends to the dispatcher. A closed list: a value outside it is rejected, not mapped. Every value on the list keeps a person in the decision.",
+      "type": "string",
+      "enum": [
+        "operational_review",
+        "hold_at_relay",
+        "escalate_to_duty_coordinator",
+        "continue_transit"
+      ]
+    },
+    "procedure_id": {
+      "description": "The identifier of the procedure the request carried, or null when retrieval found none. The schema checks the identifier's format and length; it does not verify that the identifier matches the retrieved procedure. The pattern ends with an absolute-end lookahead rather than `$`, because a `$` anchor also matches before a trailing newline.",
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[a-z0-9][a-z0-9-]*(?![\\s\\S])"
+    },
+    "response_id": {
+      "description": "The provider's per-answer response identifier: exactly sixteen lowercase hexadecimal characters, bounded by length as well as by pattern so a trailing newline is rejected.",
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[0-9a-f]{16}(?![\\s\\S])"
+    }
+  }
+}

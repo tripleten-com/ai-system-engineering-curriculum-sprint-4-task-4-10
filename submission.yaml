@@ -1,0 +1,77 @@
+# Coldline - Task 4.10
+# File: submission.yaml
+# Component: Student answer sheet
+# Purpose: Record your plan, comparison and destroy counts, your triage of one scan finding, the limits of the local run, and your recommendation.
+# Interacts With: Submission schema, public verifier, poe verify, protected answer check
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.10
+# Concepts: Infrastructure as code, drift, configuration scanning, the limits of a local emulator
+# Tools: YAML
+
+# Complete submission.yaml from the commands named beside each answer.
+# Keep the supplied keys; replace the empty values using each field's stated values.
+# Empty values and placeholder text fail verification.
+# Use submission-sample.yaml for format only; do not copy its fictional values.
+# Do not include secrets, personal data, or local absolute paths.
+
+answers:
+  # Task 4.10 — Step 1: Declare the resources
+  # Source: the summary line of `poe tofu-plan` ("Plan: N to add, ..."). A whole number.
+  # `poe verify` plans your declarations itself and compares.
+  plan_add_count: ""
+
+  # Task 4.10 — Step 2: Apply, compare with the running setup, and match it
+  # Source: `poe infra-diff` after your first apply (`diff_count_before`, even if it is 0)
+  # and after your last apply (`diff_count_after`). Whole numbers.
+  # `poe verify` compares `diff_count_after` with its own comparison.
+  diff_count_before: ""
+  diff_count_after: ""
+
+  # Task 4.10 — Step 3: Scan the configuration and triage one finding
+  # Source: `poe tofu-scan`. The one check id you triaged, exactly as the scan prints it,
+  # and one of these exact strings:
+  # - fix      you changed the setting in infra/tofu/main.tf on every resource it names
+  # - accept   you added one entry for it to infra/tofu/.trivyignore, with a comment above it
+  # `poe verify` checks both against its own scans and infra/tofu/.trivyignore.
+  triaged_finding: ""
+  triage_decision: ""
+
+  # Task 4.10 — Step 4: Destroy the sandbox and state the limits
+  # Source: the last line of `poe tofu-destroy` ("Resources: N destroyed"). A whole number.
+  # `poe verify` destroys its own copy and compares.
+  destroy_count: ""
+
+  # Every option below that this local run can't establish about a real AWS account, as a
+  # list of the exact ids, each once. Some options are things the run does establish: check
+  # each one against what you applied, compared, scanned and destroyed.
+  # - apply_destroy_rebuild: the declarations can be destroyed and rebuilt from the same
+  #   state with no manual step, and that state is empty after the destroy
+  # - encryption_keys: customer-managed KMS keys encrypt the queues and the secret at rest,
+  #   and only the intended roles can use those keys
+  # - iam_access: which IAM roles and policies may create, read, change or delete these
+  #   resources, and whether real credentials would be allowed to apply them
+  # - names_from_prefix: every declared resource is named from the prefix, so a copy sits
+  #   beside the stack's resources without replacing them
+  # - quotas_regions_cost: the real account's service quotas, its regional behaviour, and
+  #   what the resources would cost
+  # - redrive_by_reference: the queue's redrive policy follows the declared dead-letter
+  #   queue, whatever prefix names it
+  # - secret_value_outside_state: the provider secret's value stays out of the OpenTofu
+  #   state and out of every file under infra/tofu/
+  # - settings_match_startup: the declared resources carry the settings the startup code
+  #   sets on the stack's own resources
+  # - state_locking: the state is kept in a remote backend with locking, so two people
+  #   can't apply at the same time
+  # - unsafe_setting_flagged: the configuration scan flags a known-risky setting before an
+  #   apply creates it
+  # For example (the shape only, not a reading of any option):
+  #   local_limits:
+  #     - <one option id>
+  #     - <another option id>
+  local_limits: []
+
+  # Whether you'd declare the real accounts' setup the same way. Your call: `poe verify`
+  # checks only that it is one of these exact strings:
+  # - same_way       declare it in OpenTofu as you declared the sandbox
+  # - with_changes   declare it in OpenTofu, with changes this local run can't settle
+  # - differently    don't declare the real setup this way
+  recommendation: ""

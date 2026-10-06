@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Coldline Task 4.10 public answer contract. Eight answers: the number of resources your plan adds, the number of differences poe infra-diff reported before and after you matched the settings, the one scan check id you triaged and whether you fixed or accepted it, the number of resources your destroy removed, the options this local run cannot establish about a real AWS account, and your recommendation. The public check validates this shape and that the sheet is not a copy of the sample; poe verify compares the plan, difference-after and destroy counts and the triage with what it observes; the protected answer check compares the local limits and the two resource counts after the submission on the platform. There is no self-attestation field, no pass boolean, and no free-text field.",
+  "title": "Coldline Task 4.10 answers",
+  "description": "The resource counts, the differences before and after, the triage, the local limits, and the recommendation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["answers"],
+  "$defs": {
+    "count": {
+      "description": "A whole number, zero or more, as the command printed it.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "check_id": {
+      "description": "A Trivy check id as poe tofu-scan prints it: letters and digits in groups joined by hyphens.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)+$"
+    }
+  },
+  "properties": {
+    "answers": {
+      "description": "The only top-level answer mapping accepted by the public verifier.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_add_count",
+        "diff_count_before",
+        "diff_count_after",
+        "triaged_finding",
+        "triage_decision",
+        "destroy_count",
+        "local_limits",
+        "recommendation"
+      ],
+      "properties": {
+        "plan_add_count": {
+          "description": "The number of resources to add on the summary line of your Step 1 plan.",
+          "$ref": "#/$defs/count"
+        },
+        "diff_count_before": {
+          "description": "The number of differences poe infra-diff reported after your first apply.",
+          "$ref": "#/$defs/count"
+        },
+        "diff_count_after": {
+          "description": "The number of differences poe infra-diff reported after your last apply.",
+          "$ref": "#/$defs/count"
+        },
+        "triaged_finding": {
+          "description": "The one check id from poe tofu-scan you fixed or accepted.",
+          "$ref": "#/$defs/check_id"
+        },
+        "triage_decision": {
+          "description": "Whether you fixed the check in main.tf or accepted it in .trivyignore.",
+          "enum": ["fix", "accept"]
+        },
+        "destroy_count": {
+          "description": "The number of resources your Step 4 destroy removed.",
+          "$ref": "#/$defs/count"
+        },
+        "local_limits": {
+          "description": "Every option this local run cannot establish about a real AWS account, each once.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "apply_destroy_rebuild",
+              "encryption_keys",
+              "iam_access",
+              "names_from_prefix",
+              "quotas_regions_cost",
+              "redrive_by_reference",
+              "secret_value_outside_state",
+              "settings_match_startup",
+              "state_locking",
+              "unsafe_setting_flagged"
+            ]
+          }
+        },
+        "recommendation": {
+          "description": "Whether you would declare the real setup the same way. Your call: only the value is checked.",
+          "enum": ["same_way", "with_changes", "differently"]
+        }
+      }
+    }
+  }
+}

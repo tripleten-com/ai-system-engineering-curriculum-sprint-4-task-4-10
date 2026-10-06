@@ -1,0 +1,20 @@
+# Coldline - Task 2.7
+# File: config/retrieval-baseline.yaml
+# Component: Baseline retrieval configuration
+# Purpose: Freeze the configuration the experiment is measured against.
+# Interacts With: tests/benchmark/config.py and the evaluation harness
+# Sprint/Task: Sprint 2 - Project 2 / Task 2.7
+# Concepts: Controlled experiment, single-variable change
+# Tools: YAML
+
+# Protected. This is the control arm: the harness measures it on every run so
+# that the comparison is against a configuration that cannot have drifted.
+# Change config/student/retrieval.yaml instead.
+retrieval:
+  # How many fused candidates the retriever returns. The bound is the fixed
+  # candidate pool each arm fetches before fusion, so a larger value could not
+  # be satisfied.
+  top_k: 3
+  # The weight the dense arm carries in reciprocal-rank fusion; the sparse arm
+  # carries the remainder. 0.0 is sparse only and 1.0 is dense only.
+  fusion_weight: 0.5

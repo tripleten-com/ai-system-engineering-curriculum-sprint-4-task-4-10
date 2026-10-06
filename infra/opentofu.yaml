@@ -1,0 +1,19 @@
+# Coldline - Task 4.10
+# File: infra/opentofu.yaml
+# Component: OpenTofu image pin
+# Purpose: Name the OpenTofu container image the infrastructure commands run, pinned by digest.
+# Interacts With: poe tofu-setup, poe tofu-plan, poe tofu-apply, poe tofu-destroy, poe verify, tests/security/tofu.py, infra/tofu/
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.10
+# Concepts: Pinned tools, no host install, re-pinning as a recorded step
+# Tools: Docker, OpenTofu
+
+# Supplied and not student-editable. OpenTofu is never installed on your computer: every
+# `poe tofu-*` command, and `poe verify`, runs `tofu` inside this image through `docker run`.
+# The version is recorded beside the digest for a reader; the digest is what Docker pulls.
+# The AWS provider is pinned separately, by infra/tofu/providers.tf and the checksums in
+# infra/tofu/.terraform.lock.hcl. The configuration scan (`poe tofu-scan`) runs the Trivy
+# image security/scanners.yaml pins, with the checks compiled into that image.
+opentofu:
+  image: ghcr.io/opentofu/opentofu
+  version: "1.10.5"
+  digest: "sha256:d6a82da22a8f6b577525068a6311bf324c1f9b72b3b078fc8c0835c3761c7a75"

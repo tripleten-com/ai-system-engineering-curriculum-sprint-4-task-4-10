@@ -1,0 +1,39 @@
+# Coldline - Task 3.1
+# File: infra/release/manifest.yaml
+# Component: Release manifest
+# Purpose: Name the two supplied first-party image releases and the published resource bounds.
+# Interacts With: compose.yaml, tests/release/rollout.py, the release checks
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.1
+# Concepts: Immutable tags, health-gated rollout, bounded resources
+# Tools: Docker, Docker Compose
+
+# Supplied and protected. `poe release-build` builds every release below from this
+# repository's source with the stated build arguments, so the same tag always names
+# the same build on this machine. The candidate warms up slowly on purpose: its
+# readiness endpoint answers 503 for `ready_delay_seconds` after the process starts,
+# which is what a health gate has to hold traffic back from.
+
+images:
+  api: coldline-api
+  worker: coldline-worker
+
+releases:
+  known_good:
+    tag: "3.1.0"
+    build_version: "3.1.0"
+    ready_delay_seconds: 0
+  candidate:
+    tag: "3.1.1"
+    build_version: "3.1.1"
+    ready_delay_seconds: 20
+
+# Admissible resource limits for this Task, in MiB and whole or fractional CPUs. They are
+# sized from the post-readiness samples in docs/fidelity/local-runtime.md: the lower bound
+# leaves room above the observed sample, the upper bound stops a limit from being a no-op.
+resource_bounds:
+  api:
+    memory_mib: [256, 1024]
+    cpus: [0.25, 2.0]
+  worker:
+    memory_mib: [128, 512]
+    cpus: [0.25, 2.0]

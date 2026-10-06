@@ -1,0 +1,12 @@
+{
+  "scenario_id": "sprint1-baseline-exception",
+  "reading": {
+    "reading_id": "reading-syn-001",
+    "shipment_id": "shipment-syn-001",
+    "temperature_c": 9.2,
+    "allowed_min_c": 2.0,
+    "allowed_max_c": 8.0,
+    "recorded_at": "2026-08-28T00:00:00Z",
+    "handling_note": "Re-ice at the Dover relay. Call Priya Natarajan on +1 555 0142 or priya.natarajan@example.test before the pallet moves; she holds the lab's release code."
+  }
+}
