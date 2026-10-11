@@ -12,7 +12,7 @@ Sprint/Task:       Sprint 4 — Project 4 / Task 4.2
 Concepts:          Negative authorization tests, exact status assertions, 401 versus 403
 Tools:             Python 3.12, pytest, httpx
 
-Supplied Task 4.2 completion, carried forward from Task 4.7 on: one test per fixture, each
+Supplied Task 4.2 completion, carried forward from Task 4.3 on: one test per fixture, each
 creating its own exception with a stored summary, asserting the exact status, and asserting
 that the summary text does not come back on a refusal. These tests are not student-editable
 in Task 4.7; `poe student-tests` runs them beside the carried Task 4.3 and Task 4.4 tests
