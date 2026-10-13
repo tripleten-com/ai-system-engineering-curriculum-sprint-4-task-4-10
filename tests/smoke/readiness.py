@@ -6,7 +6,7 @@ File:              tests/smoke/readiness.py
 Component:         Smoke tests — Readiness
 Purpose:           Check the documented ready state for every runtime surface.
 Interacts With:    Running Docker Compose services
-Sprint/Task:       Sprint 2 — Project 2
+Sprint/Task:       Sprint 4 — Project 4 / Task 4.5
 Concepts:          Readiness, provisioning, bounded diagnostics
 Tools:             Python 3.12, pytest, Prometheus
 """
@@ -31,6 +31,9 @@ ENDPOINTS = {
         f"http://localhost:{host_port('COLDLINE_LOCALSTACK_HOST_PORT', 4566)}/_localstack/health"
     ),
 }
+# Task 4.5 adds Secrets Manager beside S3 and SQS; readiness names each service LocalStack
+# reports, since its health endpoint answers before every service has started.
+LOCALSTACK_SERVICES: tuple[str, ...] = ("s3", "sqs", "secretsmanager")
 # Sprint 2 adds LocalStack, so every Compose query has to name that profile too — a status
 # check that omits it reports the LocalStack container as absent rather than as running.
 COMPOSE_PROFILES = ("--profile", "observability", "--profile", "localstack")
@@ -128,6 +131,11 @@ def main() -> int:
         endpoint_errors = _wait_for_endpoints(client)
     failures.extend(f"{component}: {error}" for component, error in sorted(endpoint_errors.items()))
     if not failures:
+        with httpx.Client(timeout=5.0, follow_redirects=True) as client:
+            localstack_error = _localstack_services_error(client)
+        if localstack_error is not None:
+            failures.append(f"localstack: {localstack_error}")
+    if not failures:
         worker_error = _worker_health_error()
         if worker_error is not None:
             failures.append(f"worker: {worker_error}")
@@ -139,10 +147,26 @@ def main() -> int:
             print(NOT_RUNNING_HINT, file=sys.stderr)
         return 1
     print(
-        "Coldline ready: API, worker dependencies, LocalStack S3, Grafana, Prometheus, and "
-        "Jaeger are available."
+        "Coldline ready: API, worker dependencies, LocalStack S3, SQS and Secrets Manager, "
+        "Grafana, Prometheus, and Jaeger are available."
     )
     return 0
+
+
+def _localstack_services_error(client: HttpReader) -> str | None:
+    """Return an error unless LocalStack reports each emulated service the stack uses."""
+    try:
+        response = client.get(ENDPOINTS["localstack"])
+        response.raise_for_status()
+        services = response.json().get("services", {})
+    except (httpx.HTTPError, ValueError) as exc:
+        return str(exc)
+    missing = [
+        name for name in LOCALSTACK_SERVICES if services.get(name) not in {"available", "running"}
+    ]
+    if missing:
+        return "service(s) not available: " + ", ".join(missing)
+    return None
 
 
 def _worker_health_error(*, attempts: int = 60, delay: float = 0.5) -> str | None:

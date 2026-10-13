@@ -7,7 +7,7 @@ Component:         End-to-end tests — Scenario
 Purpose:           Run the supplied baseline exception scenario with one of the emulator's
                     supplied responses and, optionally, one of the supplied handling notes.
 Interacts With:    External API, worker, storage, and telemetry; tests/fixtures/pii/notes.yaml
-Sprint/Task:       Sprint 4 — Project 4 / Task 4.4
+Sprint/Task:       Sprint 4 — Project 4 / Task 4.5
 Concepts:          Black-box workflow, durable identity, evidence, supplied bad answers,
                     supplied notes
 Tools:             Python 3.12, pytest
@@ -128,7 +128,14 @@ def _wait_for_completion(client: httpx.Client, status_url: str) -> dict[str, obj
         if record["state"] in FINISHED_STATES:
             return cast(dict[str, object], record)
         if record["state"] == "FAILED":
-            raise RuntimeError("published scenario reached FAILED; run `poe reset` and retry")
+            # From Task 4.5 the usual cause is a refused provider key, and `poe reset` would
+            # hide it: the secret store comes back holding its first version.
+            raise RuntimeError(
+                f"published scenario reached FAILED: exception {record.get('exception_id')}, "
+                f"failure_reason {record.get('failure_reason')}. Run `poe provider-auth-check` "
+                "to see which key version the worker presented; do not run `poe reset`, which "
+                "returns the secret store to its first version"
+            )
         time.sleep(0.5)
     raise RuntimeError("published scenario did not finish within 15 seconds")
 

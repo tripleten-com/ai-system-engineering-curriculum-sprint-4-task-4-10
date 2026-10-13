@@ -68,7 +68,10 @@ finding, whatever its severity, with its stable id, and marks the ones at or abo
 
 Severities on one scale, `low`, `medium`, `high`, `critical`: Trivy's own severities map to it
 directly; Semgrep's `INFO`, `WARNING` and `ERROR` map to `low`, `medium` and `high`; a Gitleaks
-finding has no severity, it is a secret.
+finding has no severity, it is a secret. Every supplied rule in `security/semgrep-rules.yaml` is
+a `WARNING`, so on this repository `high` and `critical` give the same verdict today: each
+supplied static-analysis finding stays below either threshold, and what your choice decides is
+which severity of a rule added later blocks a merge.
 
 ## Finding ids
 
@@ -141,8 +144,9 @@ covers it.
 
 `poe seed-secret` writes a supplied fake key, in the Coldline provider-key format, to
 `security/seed/provider-key.txt`; `poe seed-vulnerable` writes the supplied vulnerable fixture,
-a pinned release with a published high-severity vulnerability, to
-`security/seed/requirements.txt`. Both paths lie outside the permitted files and outside any
+a pinned release with a published high-severity vulnerability and no critical one, to
+`security/seed/requirements.txt`, so the seeded scan fails at the required `dependencies: high`
+and would pass at `critical`. Both paths lie outside the permitted files and outside any
 path a suppression may name. Each seed goes on its own draft branch from your Step 3 commit, is
 pushed, fails the gate, is reverted, passes the gate, and the branch is closed without merging:
 after the revert the gate passes, because it scans the files at the head, while the fake key

@@ -511,6 +511,10 @@ class Report:
             )
         if count:
             lines.append("  (a `!` marks a finding at or above its threshold)")
+        if any(finding.scanner == "semgrep" for finding in self.findings):
+            lines.append(
+                "  (each Semgrep rule's message and recommendation: security/semgrep-rules.yaml)"
+            )
         if self.passed:
             lines.append("gate: passed (no unsuppressed finding at or above a threshold)")
         else:
