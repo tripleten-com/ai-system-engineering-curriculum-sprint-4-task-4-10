@@ -52,7 +52,7 @@ KEY_PREFIX = "cpk_"
 # it matches no scanner rule until a seed command writes the joined key into the seed file.
 _FAKE_KEY_BODY = hashlib.sha256(b"coldline task 4.5 seeded secret").hexdigest()[:32]
 FAKE_KEY = KEY_PREFIX + _FAKE_KEY_BODY
-VULNERABLE_PIN = "pyyaml==5.3"
+VULNERABLE_PIN = "flask==1.0"
 SEED_PATHS: dict[str, Path] = {"secret": SECRET_SEED_PATH, "vulnerable": VULNERABLE_SEED_PATH}
 
 

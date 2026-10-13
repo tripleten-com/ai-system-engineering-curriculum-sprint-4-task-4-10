@@ -69,7 +69,7 @@ def test_the_seeds_land_at_the_supplied_paths_outside_the_student_files(tmp_path
     assert secret == tmp_path / "security/seed/provider-key.txt"
     assert vulnerable == tmp_path / "security/seed/requirements.txt"
     assert seeds.matches_supplied_rule(secret.read_text(encoding="utf-8"))
-    assert "pyyaml==5.3" in vulnerable.read_text(encoding="utf-8")
+    assert "flask==1.0" in vulnerable.read_text(encoding="utf-8")
     for path in seeds.SEED_PATHS.values():
         assert path.as_posix() not in ALLOWED_PATHS
         assert path.as_posix().startswith("security/seed/")
