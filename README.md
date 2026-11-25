@@ -9,15 +9,13 @@ the startup code created, run a Trivy configuration scan and triage one of its f
 destroy and rebuild the copy, and record what the local run can't establish about a real AWS
 account, with your recommendation. This Task is optional and gates no other Task.
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tripleten-com/ai-system-engineering-curriculum-sprint-4-task-4-10/tree/main)
-
 ## Start the system
 
 Prerequisites are Python 3.12 and Docker with Compose v2. The supplied bootstrap supports macOS
 arm64/x86-64, Windows x86-64, and Linux x86-64/aarch64, and installs pinned uv 0.11.8 under
 `.tools/bin`. OpenTofu and Trivy are not installed on your computer: the supplied commands run
 each of them in a container image pinned by digest. If your computer cannot run the stack
-locally, use the Codespaces button above.
+locally, ask your instructor about GitHub Codespaces.
 
 On macOS and most Linux distributions the interpreter is `python3`; substitute it wherever these
 commands say `python`.
